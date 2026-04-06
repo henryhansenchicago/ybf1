@@ -1,0 +1,778 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>YBF — Membership Value Calculator</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=IBM+Plex+Mono:wght@500;600;700&family=IBM+Plex+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #fff; color: #000; font-family: 'IBM Plex Sans', sans-serif; min-height: 100vh; }
+
+  .page { max-width: 760px; margin: 0 auto; padding: 60px 40px 100px; }
+
+  /* HEADER */
+  .header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 60px; padding-bottom: 24px; border-bottom: 3px solid #000; }
+  .logo { font-family: 'Bebas Neue', sans-serif; font-size: 52px; letter-spacing: 4px; line-height: 1; }
+  .tagline { font-family: 'IBM Plex Mono', monospace; font-size: 10px; font-weight: 700; letter-spacing: 3px; text-transform: uppercase; margin-top: 6px; }
+  .header-right { font-family: 'IBM Plex Mono', monospace; font-size: 10px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; text-align: right; line-height: 1.8; padding-top: 8px; }
+
+  /* STEP INDICATOR */
+  .step-indicator { display: flex; align-items: center; gap: 0; margin-bottom: 48px; }
+  .step-dot { width: 32px; height: 32px; border-radius: 50%; border: 3px solid #000; background: #fff; display: flex; align-items: center; justify-content: center; font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 700; flex-shrink: 0; transition: all 0.3s; }
+  .step-dot.active { background: #000; color: #fff; }
+  .step-dot.done { background: #000; color: #fff; }
+  .step-dot.done::after { content: '✓'; }
+  .step-dot.done span { display: none; }
+  .step-line { flex: 1; height: 3px; background: #e0e0e0; transition: background 0.3s; }
+  .step-line.done { background: #000; }
+
+  /* STEP PANEL */
+  .step { display: none; animation: fadeIn 0.35s ease both; }
+  .step.active { display: block; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+
+  /* ADVISOR VOICE */
+  .advisor-label { font-family: 'IBM Plex Mono', monospace; font-size: 9px; font-weight: 700; letter-spacing: 4px; text-transform: uppercase; color: #000; opacity: 0.4; margin-bottom: 12px; }
+  .advisor-question { font-family: 'Bebas Neue', sans-serif; font-size: 52px; letter-spacing: 1px; line-height: 1.0; margin-bottom: 16px; }
+  .advisor-sub { font-size: 16px; font-weight: 400; line-height: 1.7; color: #000; max-width: 600px; margin-bottom: 36px; }
+  .advisor-sub strong { font-weight: 700; }
+
+  /* INPUTS */
+  .input-grid { display: grid; gap: 20px; margin-bottom: 36px; }
+  .input-grid.cols2 { grid-template-columns: 1fr 1fr; }
+  .input-grid.cols4 { grid-template-columns: 1fr 1fr 1fr 1fr; }
+
+  .field label { display: block; font-family: 'IBM Plex Mono', monospace; font-size: 9px; font-weight: 700; letter-spacing: 3px; text-transform: uppercase; margin-bottom: 6px; }
+  .field .hint { font-family: 'IBM Plex Mono', monospace; font-size: 10px; font-weight: 700; opacity: 0.6; margin-bottom: 8px; letter-spacing: 1px; }
+  .field .input-wrap { position: relative; }
+  .field .input-wrap .pre { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); font-family: 'IBM Plex Mono', monospace; font-size: 15px; font-weight: 700; pointer-events: none; }
+  .field .input-wrap .suf { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); font-family: 'IBM Plex Mono', monospace; font-size: 10px; font-weight: 700; pointer-events: none; opacity: 0.4; }
+  .field input[type=number] { width: 100%; border: 3px solid #000; background: #fff; color: #000; font-family: 'IBM Plex Mono', monospace; font-size: 22px; font-weight: 700; padding: 12px 44px 12px 30px; outline: none; -moz-appearance: textfield; }
+  .field input[type=number].no-pre { padding-left: 12px; }
+  .field input[type=number]::-webkit-inner-spin-button,
+  .field input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; }
+  .field input[type=number]:focus { background: #f7f7f7; }
+
+  /* RESULT CARDS */
+  .result-row { display: grid; gap: 3px; margin-bottom: 32px; background: #000; }
+  .result-row.cols2 { grid-template-columns: 1fr 1fr; }
+  .result-row.cols3 { grid-template-columns: 1fr 1fr 1fr; }
+  .result-row.cols4 { grid-template-columns: 1fr 1fr 1fr 1fr; }
+  .rcard { background: #000; padding: 20px 18px; }
+  .rcard.light { background: #fff; border: 3px solid #000; }
+  .rcard .rl { font-family: 'IBM Plex Mono', monospace; font-size: 9px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: #fff; opacity: 0.6; margin-bottom: 6px; }
+  .rcard.light .rl { color: #000; }
+  .rcard .rv { font-family: 'Bebas Neue', sans-serif; font-size: 34px; letter-spacing: 1px; color: #fff; line-height: 1; }
+  .rcard.light .rv { color: #000; }
+  .rcard .rv.big { font-size: 52px; }
+  .rcard .rv.huge { font-size: 72px; }
+
+  /* COMPARE TABLE */
+  .compare-table { border: 3px solid #000; margin-bottom: 32px; }
+  .compare-header { display: grid; grid-template-columns: 2fr 1fr 1fr; background: #000; }
+  .compare-header div { font-family: 'IBM Plex Mono', monospace; font-size: 9px; font-weight: 700; letter-spacing: 3px; text-transform: uppercase; color: #fff; padding: 14px 16px; }
+  .compare-row { display: grid; grid-template-columns: 2fr 1fr 1fr; border-top: 2px solid #000; }
+  .compare-row div { padding: 14px 16px; font-family: 'IBM Plex Mono', monospace; font-size: 13px; font-weight: 600; }
+  .compare-row div:first-child { font-weight: 500; font-size: 12px; }
+  .compare-row div:last-child { font-weight: 700; color: #000; }
+  .compare-row.highlight { background: #f7f7f7; }
+
+  /* SLIDER */
+  .slider-block { background: #000; padding: 28px 32px; margin-bottom: 32px; }
+  .slider-crop-label { font-family: 'IBM Plex Mono', monospace; font-size: 9px; font-weight: 700; letter-spacing: 3px; text-transform: uppercase; color: #fff; opacity: 0.6; margin-bottom: 4px; }
+  .slider-val-display { font-family: 'Bebas Neue', sans-serif; font-size: 56px; letter-spacing: 2px; color: #fff; line-height: 1; }
+  .slider-val-label { font-family: 'IBM Plex Mono', monospace; font-size: 9px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: #fff; opacity: 0.4; margin-bottom: 12px; }
+  .slider-ends { display: flex; justify-content: space-between; }
+  .slider-ends span { font-family: 'IBM Plex Mono', monospace; font-size: 10px; font-weight: 700; color: #fff; }
+  .drag-hint { text-align: center; font-family: 'IBM Plex Mono', monospace; font-size: 9px; font-weight: 700; letter-spacing: 3px; text-transform: uppercase; color: #fff; opacity: 0.35; margin-top: 6px; }
+  .slider-divider { border: none; border-top: 1px solid rgba(255,255,255,0.15); margin: 24px 0; }
+
+  input[type=range] {
+    -webkit-appearance: none; appearance: none;
+    width: 100%; height: 8px; background: rgba(255,255,255,0.25);
+    border-radius: 4px; outline: none; cursor: pointer; margin: 8px 0;
+  }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none; width: 36px; height: 36px; border-radius: 50%;
+    background: #fff; cursor: pointer; box-shadow: 0 2px 10px rgba(0,0,0,0.4);
+    transition: transform 0.1s;
+  }
+  input[type=range]:hover::-webkit-slider-thumb { transform: scale(1.1); }
+  input[type=range]::-moz-range-thumb { width: 36px; height: 36px; border-radius: 50%; border: none; background: #fff; cursor: pointer; }
+  input[type=range]::-moz-range-track { height: 8px; background: rgba(255,255,255,0.25); border-radius: 4px; }
+
+  /* PATRONAGE CHECKS */
+  .patronage-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 3px; background: #000; margin-bottom: 32px; }
+  .pat-col { background: #fff; padding: 24px 28px; }
+  .pat-col-title { font-family: 'Bebas Neue', sans-serif; font-size: 24px; letter-spacing: 2px; margin-bottom: 4px; }
+  .pat-col-rate { font-family: 'IBM Plex Mono', monospace; font-size: 9px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; opacity: 0.4; margin-bottom: 18px; padding-bottom: 14px; border-bottom: 2px solid #000; }
+  .beh { display: flex; align-items: center; justify-content: space-between; padding: 11px 0; border-bottom: 1px solid rgba(0,0,0,0.08); gap: 12px; cursor: pointer; }
+  .beh:last-of-type { border-bottom: none; }
+  .beh-left { display: flex; align-items: center; gap: 12px; }
+  .check { width: 24px; height: 24px; border: 3px solid #000; background: #fff; flex-shrink: 0; display: flex; align-items: center; justify-content: center; transition: background 0.15s; }
+  .check.on { background: #000; }
+  .check.on::after { content: '✓'; color: #fff; font-size: 13px; font-weight: 700; font-family: 'IBM Plex Mono', monospace; }
+  .beh-name { font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 600; line-height: 1.4; }
+  .beh-dead { font-family: 'IBM Plex Mono', monospace; font-size: 9px; font-weight: 500; opacity: 0.4; }
+  .beh-amt { font-family: 'Bebas Neue', sans-serif; font-size: 20px; letter-spacing: 1px; white-space: nowrap; }
+  .pat-earned { margin-top: 16px; background: #000; color: #fff; padding: 14px 16px; display: flex; justify-content: space-between; align-items: center; }
+  .pat-earned-label { font-family: 'IBM Plex Mono', monospace; font-size: 9px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: #fff; opacity: 0.6; }
+  .pat-earned-val { font-family: 'Bebas Neue', sans-serif; font-size: 32px; color: #fff; letter-spacing: 1px; }
+
+  /* FINAL VALUE BOX */
+  .value-box { background: #000; padding: 40px; margin-bottom: 32px; }
+  .value-box-title { font-family: 'IBM Plex Mono', monospace; font-size: 9px; font-weight: 700; letter-spacing: 4px; text-transform: uppercase; color: #fff; opacity: 0.5; margin-bottom: 8px; }
+  .value-lines { margin-bottom: 28px; }
+  .vline { display: flex; justify-content: space-between; align-items: baseline; padding: 13px 0; border-top: 1px solid rgba(255,255,255,0.1); }
+  .vline:last-child { border-bottom: 1px solid rgba(255,255,255,0.1); }
+  .vline .vl { font-family: 'IBM Plex Mono', monospace; font-size: 12px; font-weight: 500; color: #fff; }
+  .vline .vv { font-family: 'Bebas Neue', sans-serif; font-size: 32px; color: #fff; letter-spacing: 1px; }
+  .value-total-row { display: flex; justify-content: space-between; align-items: center; border-top: 3px solid #fff; padding-top: 24px; gap: 20px; }
+  .value-total-label { font-family: 'IBM Plex Mono', monospace; font-size: 13px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: #fff; line-height: 1.6; }
+  .value-total-num { font-family: 'Bebas Neue', sans-serif; font-size: 88px; color: #fff; letter-spacing: 2px; line-height: 1; white-space: nowrap; }
+  .value-note { margin-top: 24px; font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 500; color: #fff; opacity: 0.5; line-height: 1.65; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 18px; }
+  .value-note strong { font-weight: 700; opacity: 1; }
+
+  /* NAV BUTTONS */
+  .nav { display: flex; align-items: center; justify-content: space-between; margin-top: 8px; }
+  .btn { font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 700; letter-spacing: 3px; text-transform: uppercase; padding: 16px 32px; border: 3px solid #000; background: #000; color: #fff; cursor: pointer; transition: all 0.15s; }
+  .btn:hover { background: #fff; color: #000; }
+  .btn.secondary { background: #fff; color: #000; }
+  .btn.secondary:hover { background: #000; color: #fff; }
+  .btn:disabled { opacity: 0.3; cursor: not-allowed; }
+  .step-count { font-family: 'IBM Plex Mono', monospace; font-size: 10px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; opacity: 0.4; }
+
+  /* INTERSTITIAL */
+  .interstitial { background: #000; padding: 56px 48px; margin-bottom: 32px; }
+  .interstitial-eyebrow { font-family: 'IBM Plex Mono', monospace; font-size: 9px; font-weight: 700; letter-spacing: 4px; text-transform: uppercase; color: #fff; opacity: 0.4; margin-bottom: 24px; }
+  .interstitial-body { font-family: 'Bebas Neue', sans-serif; font-size: 52px; letter-spacing: 1px; line-height: 1.05; color: #fff; margin-bottom: 32px; }
+  .interstitial-body em { font-style: normal; display: block; font-size: 40px; opacity: 0.6; margin-top: 8px; }
+  .interstitial-sub { font-family: 'IBM Plex Sans', sans-serif; font-size: 16px; font-weight: 400; color: #fff; opacity: 0.8; line-height: 1.7; max-width: 520px; }
+  .interstitial-sub strong { font-weight: 700; color: #fff; }
+
+  /* REVELATION PANEL */
+  .revelation { background: #000; padding: 36px 40px; margin-bottom: 32px; }
+  .rev-eyebrow { font-family: 'IBM Plex Mono', monospace; font-size: 9px; font-weight: 700; letter-spacing: 4px; text-transform: uppercase; color: #fff; opacity: 0.4; margin-bottom: 20px; }
+  .rev-crops { display: grid; grid-template-columns: 1fr 1fr; gap: 2px; background: rgba(255,255,255,0.1); margin-bottom: 28px; }
+  .rev-crop { background: #000; padding: 24px; }
+  .rev-crop-name { font-family: 'IBM Plex Mono', monospace; font-size: 9px; font-weight: 700; letter-spacing: 3px; text-transform: uppercase; color: #fff; opacity: 0.5; margin-bottom: 8px; }
+  .rev-perk-num { font-family: 'Bebas Neue', sans-serif; font-size: 72px; letter-spacing: 2px; color: #fff; line-height: 1; margin-bottom: 4px; }
+  .rev-perk-label { font-family: 'IBM Plex Mono', monospace; font-size: 10px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: #fff; opacity: 0.5; margin-bottom: 12px; }
+  .rev-context { font-family: 'IBM Plex Mono', monospace; font-size: 10px; font-weight: 600; color: #fff; opacity: 0.6; line-height: 1.6; }
+  .rev-statement { font-family: 'IBM Plex Sans', sans-serif; font-size: 15px; font-weight: 500; color: #fff; line-height: 1.7; opacity: 0.85; border-top: 1px solid rgba(255,255,255,0.15); padding-top: 20px; }
+  .rev-statement strong { font-weight: 700; color: #fff; }
+
+  /* FOOTER */
+  .footer { margin-top: 80px; padding-top: 24px; border-top: 3px solid #000; display: flex; justify-content: space-between; align-items: center; }
+  .footer-logo { font-family: 'Bebas Neue', sans-serif; font-size: 26px; letter-spacing: 3px; }
+  .footer-note { font-family: 'IBM Plex Mono', monospace; font-size: 9px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; text-align: right; line-height: 1.8; }
+
+  /* RESPONSIVE */
+  @media (max-width: 640px) {
+    .page { padding: 32px 20px 60px; }
+    .advisor-question { font-size: 36px; }
+    .input-grid.cols2, .input-grid.cols4 { grid-template-columns: 1fr 1fr; }
+    .result-row.cols4 { grid-template-columns: 1fr 1fr; }
+    .compare-header, .compare-row { grid-template-columns: 1.5fr 1fr 1fr; }
+    .patronage-grid { grid-template-columns: 1fr; }
+    .value-total-num { font-size: 60px; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <!-- HEADER -->
+  <header class="header">
+    <div>
+      <div class="logo">YBF</div>
+      <div class="tagline">Young Beginning Farmer · Direct Seed</div>
+    </div>
+    <div class="header-right">Membership<br>Value Calculator<br>2026 Season</div>
+  </header>
+
+  <!-- STEP INDICATOR -->
+  <div class="step-indicator">
+    <div class="step-dot active" id="dot-1"><span>1</span></div>
+    <div class="step-line" id="line-1"></div>
+    <div class="step-dot" id="dot-2"><span>2</span></div>
+    <div class="step-line" id="line-2"></div>
+    <div class="step-dot" id="dot-3"><span>3</span></div>
+    <div class="step-line" id="line-3"></div>
+    <div class="step-dot" id="dot-4"><span>4</span></div>
+    <div class="step-line" id="line-4"></div>
+    <div class="step-dot" id="dot-5"><span>5</span></div>
+  </div>
+
+
+  <!-- ═══════════════ STEP 1 — YOUR OPERATION ═══════════════ -->
+  <div class="step active" id="step-1">
+    <div class="advisor-label">Step 1 of 5 — Your Operation</div>
+    <div class="advisor-question">We empower you to control the cost of high performing seed.</div>
+    <div class="advisor-sub">Access industry-leading genetics and traits in a next-generation membership model. You are now in control. <strong>Simple. Transparent. Direct.</strong></div>
+    <div class="advisor-sub" style="margin-top:-20px;">To learn how to create more value for yourself, begin by inputting potential acres, seeding rates and current prices you pay.</div>
+
+    <div class="input-grid cols2">
+      <div class="field">
+        <label>Corn acres</label>
+        <div class="hint">How many acres are you planting?</div>
+        <div class="input-wrap">
+          <input type="number" id="corn-acres" class="no-pre" placeholder="600" min="0" step="10">
+          <span class="suf">ac</span>
+        </div>
+      </div>
+      <div class="field">
+        <label>Soybean acres</label>
+        <div class="hint">How many acres are you planting?</div>
+        <div class="input-wrap">
+          <input type="number" id="soy-acres" class="no-pre" placeholder="500" min="0" step="10">
+          <span class="suf">ac</span>
+        </div>
+      </div>
+      <div class="field">
+        <label>Corn seeding rate</label>
+        <div class="hint">Seeds per acre — typically 28K–36K</div>
+        <div class="input-wrap">
+          <input type="number" id="corn-rate" class="no-pre" value="32000" min="1" step="500">
+          <span class="suf">seeds</span>
+        </div>
+      </div>
+      <div class="field">
+        <label>Soybean seeding rate</label>
+        <div class="hint">Seeds per acre — typically 130K–155K</div>
+        <div class="input-wrap">
+          <input type="number" id="soy-rate" class="no-pre" value="140000" min="1" step="1000">
+          <span class="suf">seeds</span>
+        </div>
+      </div>
+      <div class="field">
+        <label>Corn — what you pay per bag</label>
+        <div class="hint">Your current retail price</div>
+        <div class="input-wrap">
+          <span class="pre">$</span>
+          <input type="number" id="corn-retail" placeholder="290" min="0" step="1">
+        </div>
+      </div>
+      <div class="field">
+        <label>Soybeans — what you pay per bag</label>
+        <div class="hint">Your current retail price · fully treated</div>
+        <div class="input-wrap">
+          <span class="pre">$</span>
+          <input type="number" id="soy-retail" placeholder="77" min="0" step="1">
+        </div>
+      </div>
+    </div>
+
+    <div class="nav">
+      <span class="step-count">Step 1 of 5</span>
+      <button class="btn" onclick="goTo(2)">See What You're Paying →</button>
+    </div>
+  </div>
+
+
+  <!-- ═══════════════ STEP 2 — WHAT YOU PAY TODAY ═══════════════ -->
+  <div class="step" id="step-2">
+
+    <!-- MOMENT 1 — INTERSTITIAL -->
+    <div class="interstitial">
+      <div class="interstitial-eyebrow">Before we show you the numbers</div>
+      <div class="interstitial-body">
+        Every farmer deserves to know what their seed actually costs.
+        <em>Not per bag. Per thousand seeds.</em>
+      </div>
+      <div class="interstitial-sub">
+        That's the number that tells the truth. It means the same thing on every farm, with every seeding rate, in every county in the Corn Belt. <strong>Now you will too.</strong>
+      </div>
+    </div>
+
+    <div class="advisor-label">Step 2 of 5 — What You're Paying Today</div>
+    <div class="advisor-question">Here's what your seed is actually costing you.</div>
+    <div class="advisor-sub">Most farmers buy by the bag, never see the number underneath, or have to try to do the math for themselves. We believe you should simply be able to compare seed pricing, apples to apples.</div>
+
+    <div class="compare-table">
+      <div class="compare-header">
+        <div></div>
+        <div>Corn</div>
+        <div>Soybeans</div>
+      </div>
+      <div class="compare-row">
+        <div>Bags you need</div>
+        <div id="s2-corn-bags">—</div>
+        <div id="s2-soy-bags">—</div>
+      </div>
+      <div class="compare-row highlight">
+        <div>Your cost per thousand seeds</div>
+        <div id="s2-corn-perk">—</div>
+        <div id="s2-soy-perk">—</div>
+      </div>
+      <div class="compare-row">
+        <div>Cost per acre</div>
+        <div id="s2-corn-acre">—</div>
+        <div id="s2-soy-acre">—</div>
+      </div>
+      <div class="compare-row highlight">
+        <div>Total season seed spend</div>
+        <div id="s2-corn-total">—</div>
+        <div id="s2-soy-total">—</div>
+      </div>
+    </div>
+
+    <div class="result-row cols2" style="margin-bottom:32px;">
+      <div class="rcard light">
+        <div class="rl">Your total annual seed spend</div>
+        <div class="rv big" id="s2-grand-total">—</div>
+      </div>
+      <div class="rcard">
+        <div class="rl">Both crops combined</div>
+        <div class="rv" style="font-size:13px; font-family:'IBM Plex Sans',sans-serif; font-weight:500; line-height:1.6; opacity:0.85; padding-top:4px;">Corn and soybeans, everything you'll spend on seed this season — in one place, for the first time.</div>
+      </div>
+    </div>
+
+    <!-- MOMENT 2 — REVELATION -->
+    <div class="revelation">
+      <div class="rev-eyebrow">Your real seed cost — per thousand seeds</div>
+      <div class="rev-crops">
+        <div class="rev-crop">
+          <div class="rev-crop-name">Corn</div>
+          <div class="rev-perk-num" id="rev-corn-perk">—</div>
+          <div class="rev-perk-label">per thousand seeds</div>
+          <div class="rev-context">Based on your bag price and an 80,000 seed unit. This number moves with your seeding rate — your true cost per acre is this number × your rate ÷ 1,000.</div>
+        </div>
+        <div class="rev-crop">
+          <div class="rev-crop-name">Soybeans · Fully Treated</div>
+          <div class="rev-perk-num" id="rev-soy-perk">—</div>
+          <div class="rev-perk-label">per thousand seeds</div>
+          <div class="rev-context">Based on your bag price and a 140,000 seed unit. Fully treated beans carry a treatment cost inside every bag — per-K makes that visible for the first time.</div>
+        </div>
+      </div>
+      <div class="rev-statement">
+        Bag prices are designed to make comparison difficult. Per-thousand-seed pricing is precise, transparent, and farmer-first. It's the only unit that means exactly the same thing on every operation — regardless of bag size, seeding rate, or treatment. YBF prices from this number. That's the difference.
+      </div>
+    </div>
+
+    <div class="nav">
+      <button class="btn secondary" onclick="goTo(1)">← Back</button>
+      <span class="step-count">Step 2 of 5</span>
+      <button class="btn" onclick="goTo(3)">See YBF Pricing →</button>
+    </div>
+  </div>
+
+
+  <!-- ═══════════════ STEP 3 — YBF COMPARISON ═══════════════ -->
+  <div class="step" id="step-3">
+    <div class="advisor-label">Step 3 of 5 — YBF Direct Pricing</div>
+    <div class="advisor-question">Here's what that looks like with YBF.</div>
+    <div class="advisor-sub">We price direct, per thousand seeds. You control your cost by ordering and paying for the acres you plan to plant. YBF soybeans are fully treated and shipped directly to you. <strong>Drag the circles</strong> to explore our price range and see your savings update in real time.</div>
+
+    <!-- CORN SLIDER -->
+    <div class="slider-block" style="margin-bottom:3px;">
+      <div class="slider-crop-label">Corn — YBF price per bag</div>
+      <div class="slider-val-display" id="s3-corn-val">$260</div>
+      <div class="slider-val-label">YBF price per bag · drag to explore</div>
+      <div class="slider-ends"><span>$200</span><span>$320</span></div>
+      <input type="range" id="corn-slider" min="200" max="320" value="260" step="1">
+      <div class="drag-hint">← drag the circle →</div>
+    </div>
+
+    <!-- SOY SLIDER -->
+    <div class="slider-block" style="margin-bottom:3px;">
+      <div class="slider-crop-label">Soybeans — YBF price per bag</div>
+      <div class="slider-val-display" id="s3-soy-val">$65</div>
+      <div class="slider-val-label">YBF price per bag · drag to explore</div>
+      <div class="slider-ends"><span>$55</span><span>$90</span></div>
+      <input type="range" id="soy-slider" min="55" max="90" value="65" step="1">
+      <div class="drag-hint">← drag the circle →</div>
+    </div>
+
+    <!-- SAVINGS -->
+    <div class="compare-table" style="margin-top:3px; margin-bottom:32px;">
+      <div class="compare-header">
+        <div></div>
+        <div>Corn</div>
+        <div>Soybeans</div>
+      </div>
+      <div class="compare-row highlight">
+        <div>YBF cost per thousand seeds</div>
+        <div id="s3-corn-perk">—</div>
+        <div id="s3-soy-perk">—</div>
+      </div>
+      <div class="compare-row">
+        <div>Savings per acre</div>
+        <div id="s3-corn-save-acre">—</div>
+        <div id="s3-soy-save-acre">—</div>
+      </div>
+      <div class="compare-row highlight">
+        <div>Total seed savings this season</div>
+        <div id="s3-corn-save-total">—</div>
+        <div id="s3-soy-save-total">—</div>
+      </div>
+    </div>
+
+    <div class="result-row cols2" style="margin-bottom:32px;">
+      <div class="rcard">
+        <div class="rl">Total seed savings — both crops</div>
+        <div class="rv big" id="s3-total-savings">—</div>
+      </div>
+      <div class="rcard light">
+        <div class="rl">YBF members know the exact number</div>
+        <div class="rv" style="font-size:13px; font-family:'IBM Plex Sans',sans-serif; font-weight:500; line-height:1.6; color:#000;">Give us a call, become a member — we'll be happy to share exactly where on that range we sit.</div>
+      </div>
+    </div>
+
+    <div class="nav">
+      <button class="btn secondary" onclick="goTo(2)">← Back</button>
+      <span class="step-count">Step 3 of 5</span>
+      <button class="btn" onclick="goTo(4)">See Yield Advantage →</button>
+    </div>
+  </div>
+
+
+  <!-- ═══════════════ STEP 4 — YIELD ADVANTAGE ═══════════════ -->
+  <div class="step" id="step-4">
+    <div class="advisor-label">Step 4 of 5 — Yield Advantage</div>
+    <div class="advisor-question">What if your seed performed better?</div>
+    <div class="advisor-sub">We're not going to tell you our genetics outyield the competition. <strong>That's your call to make.</strong> But what would one extra bushel per acre mean to your operation? Set your own assumption — conservative or aggressive. We'll add it to your seed savings and show you the full picture.</div>
+
+    <!-- CORN YIELD SLIDER -->
+    <div class="slider-block" style="margin-bottom:3px;">
+      <div class="slider-crop-label">Corn — hypothetical yield advantage</div>
+      <div class="slider-val-display" id="s4-corn-yield-val">0 bu/ac</div>
+      <div class="slider-val-label">extra bushels per acre · your assumption</div>
+      <div class="slider-ends"><span>0 bu</span><span>15 bu</span></div>
+      <input type="range" id="corn-yield-slider" min="0" max="15" value="0" step="0.5">
+      <div class="drag-hint">← drag the circle to set your assumption →</div>
+      <div style="margin-top:20px; display:flex; align-items:center; gap:16px;">
+        <div style="font-family:'IBM Plex Mono',monospace; font-size:9px; font-weight:700; letter-spacing:2px; text-transform:uppercase; color:#fff; opacity:0.6; white-space:nowrap;">Corn price / bu</div>
+        <div style="position:relative; flex:0 0 140px;">
+          <span style="position:absolute; left:12px; top:50%; transform:translateY(-50%); font-family:'IBM Plex Mono',monospace; font-size:14px; font-weight:700; color:#000; pointer-events:none;">$</span>
+          <input type="number" id="corn-commodity" value="4.50" min="0" step="0.10" style="width:100%; border:3px solid #fff; background:#fff; color:#000; font-family:'IBM Plex Mono',monospace; font-size:18px; font-weight:700; padding:10px 10px 10px 26px; outline:none; -moz-appearance:textfield;">
+        </div>
+        <div style="font-family:'Bebas Neue',sans-serif; font-size:36px; color:#fff; letter-spacing:1px;" id="s4-corn-yield-revenue">—</div>
+        <div style="font-family:'IBM Plex Mono',monospace; font-size:9px; font-weight:700; color:#fff; opacity:0.5; text-transform:uppercase; letter-spacing:1px;">added revenue</div>
+      </div>
+    </div>
+
+    <!-- SOY YIELD SLIDER -->
+    <div class="slider-block" style="margin-bottom:32px;">
+      <div class="slider-crop-label">Soybeans — hypothetical yield advantage</div>
+      <div class="slider-val-display" id="s4-soy-yield-val">0 bu/ac</div>
+      <div class="slider-val-label">extra bushels per acre · your assumption</div>
+      <div class="slider-ends"><span>0 bu</span><span>8 bu</span></div>
+      <input type="range" id="soy-yield-slider" min="0" max="8" value="0" step="0.5">
+      <div class="drag-hint">← drag the circle to set your assumption →</div>
+      <div style="margin-top:20px; display:flex; align-items:center; gap:16px;">
+        <div style="font-family:'IBM Plex Mono',monospace; font-size:9px; font-weight:700; letter-spacing:2px; text-transform:uppercase; color:#fff; opacity:0.6; white-space:nowrap;">Bean price / bu</div>
+        <div style="position:relative; flex:0 0 140px;">
+          <span style="position:absolute; left:12px; top:50%; transform:translateY(-50%); font-family:'IBM Plex Mono',monospace; font-size:14px; font-weight:700; color:#000; pointer-events:none;">$</span>
+          <input type="number" id="soy-commodity" value="9.50" min="0" step="0.10" style="width:100%; border:3px solid #fff; background:#fff; color:#000; font-family:'IBM Plex Mono',monospace; font-size:18px; font-weight:700; padding:10px 10px 10px 26px; outline:none; -moz-appearance:textfield;">
+        </div>
+        <div style="font-family:'Bebas Neue',sans-serif; font-size:36px; color:#fff; letter-spacing:1px;" id="s4-soy-yield-revenue">—</div>
+        <div style="font-family:'IBM Plex Mono',monospace; font-size:9px; font-weight:700; color:#fff; opacity:0.5; text-transform:uppercase; letter-spacing:1px;">added revenue</div>
+      </div>
+    </div>
+
+    <div class="result-row cols2" style="margin-bottom:32px;">
+      <div class="rcard">
+        <div class="rl">Total yield revenue gain — both crops</div>
+        <div class="rv big" id="s4-total-yield">—</div>
+      </div>
+      <div class="rcard light">
+        <div class="rl">Seed savings from Step 3</div>
+        <div class="rv big" id="s4-seed-savings-carry">—</div>
+      </div>
+    </div>
+
+    <div class="nav">
+      <button class="btn secondary" onclick="goTo(3)">← Back</button>
+      <span class="step-count">Step 4 of 5</span>
+      <button class="btn" onclick="goTo(5)">See Total Value →</button>
+    </div>
+  </div>
+
+
+  <!-- ═══════════════ STEP 4 — TOTAL VALUE ═══════════════ -->
+  <div class="step" id="step-5">
+    <div class="advisor-label">Step 5 of 5 — Your YBF Membership Value</div>
+    <div class="advisor-question">Here's what a YBF membership is worth to your operation.</div>
+    <div class="advisor-sub">With YBF, you are empowered to create your own member patronage savings. Check the boxes of the membership actions you want to participate in and we'll show you your total annual value as a YBF member.</div>
+
+    <!-- PATRONAGE -->
+    <div style="font-family:'IBM Plex Mono',monospace; font-size:9px; font-weight:700; letter-spacing:4px; text-transform:uppercase; margin-bottom:14px; opacity:0.5;">YBF Patronage — check what you'll commit to</div>
+    <div class="patronage-grid">
+      <div class="pat-col">
+        <div class="pat-col-title">CORN</div>
+        <div class="pat-col-rate">$1.50 credit per bag, per behavior · <span id="corn-pat-bags-display">—</span> bags</div>
+        <div class="beh" onclick="toggle('cb1')">
+          <div class="beh-left"><div class="check" id="cb1"></div><div><div class="beh-name">Book seed early</div><div class="beh-dead">Commit by Sept 30</div></div></div>
+          <div class="beh-amt">$1.50/bag</div>
+        </div>
+        <div class="beh" onclick="toggle('cb2')">
+          <div class="beh-left"><div class="check" id="cb2"></div><div><div class="beh-name">Pay on time</div><div class="beh-dead">Payment by Dec 1</div></div></div>
+          <div class="beh-amt">$1.50/bag</div>
+        </div>
+        <div class="beh" onclick="toggle('cb3')">
+          <div class="beh-left"><div class="check" id="cb3"></div><div><div class="beh-name">Accept delivery on schedule</div><div class="beh-dead">In your delivery window</div></div></div>
+          <div class="beh-amt">$1.50/bag</div>
+        </div>
+        <div class="beh" onclick="toggle('cb4')">
+          <div class="beh-left"><div class="check" id="cb4"></div><div><div class="beh-name">Limit returns under 5%</div><div class="beh-dead">Keep returns clean</div></div></div>
+          <div class="beh-amt">$1.50/bag</div>
+        </div>
+        <div class="pat-earned">
+          <div class="pat-earned-label">Corn patronage credit</div>
+          <div class="pat-earned-val" id="corn-pat-val">—</div>
+        </div>
+      </div>
+
+      <div class="pat-col">
+        <div class="pat-col-title">SOYBEANS</div>
+        <div class="pat-col-rate">$0.50 credit per bag, per behavior · <span id="soy-pat-bags-display">—</span> bags</div>
+        <div class="beh" onclick="toggle('sb1')">
+          <div class="beh-left"><div class="check" id="sb1"></div><div><div class="beh-name">Book seed early</div><div class="beh-dead">Commit by Sept 30</div></div></div>
+          <div class="beh-amt">$0.50/bag</div>
+        </div>
+        <div class="beh" onclick="toggle('sb2')">
+          <div class="beh-left"><div class="check" id="sb2"></div><div><div class="beh-name">Pay on time</div><div class="beh-dead">Payment by Dec 1</div></div></div>
+          <div class="beh-amt">$0.50/bag</div>
+        </div>
+        <div class="beh" onclick="toggle('sb3')">
+          <div class="beh-left"><div class="check" id="sb3"></div><div><div class="beh-name">Accept delivery on schedule</div><div class="beh-dead">In your delivery window</div></div></div>
+          <div class="beh-amt">$0.50/bag</div>
+        </div>
+        <div class="beh" onclick="toggle('sb4')">
+          <div class="beh-left"><div class="check" id="sb4"></div><div><div class="beh-name">Limit returns under 5%</div><div class="beh-dead">Keep returns clean</div></div></div>
+          <div class="beh-amt">$0.50/bag</div>
+        </div>
+        <div class="pat-earned">
+          <div class="pat-earned-label">Soybean patronage credit</div>
+          <div class="pat-earned-val" id="soy-pat-val">—</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TOTAL VALUE -->
+    <div class="value-box">
+      <div class="value-box-title">Your total YBF membership value — this season</div>
+      <div class="value-lines">
+        <div class="vline"><span class="vl">Corn seed savings</span><span class="vv" id="v-corn-seed">—</span></div>
+        <div class="vline"><span class="vl">Soybean seed savings</span><span class="vv" id="v-soy-seed">—</span></div>
+        <div class="vline"><span class="vl">Corn yield revenue gain</span><span class="vv" id="v-corn-yield">—</span></div>
+        <div class="vline"><span class="vl">Soybean yield revenue gain</span><span class="vv" id="v-soy-yield">—</span></div>
+        <div class="vline"><span class="vl">Corn patronage credit</span><span class="vv" id="v-corn-pat">—</span></div>
+        <div class="vline"><span class="vl">Soybean patronage credit</span><span class="vv" id="v-soy-pat">—</span></div>
+      </div>
+      <div class="value-total-row">
+        <div class="value-total-label">Total value<br>of YBF membership</div>
+        <div class="value-total-num" id="v-grand">—</div>
+      </div>
+      <div class="value-note">
+        <strong>This is your math.</strong> Seed savings are based on the price you set on the slider. Patronage credit is earned at season end and applied to next year's order. The industry makes this complicated on purpose. We don't.
+      </div>
+    </div>
+
+    <div class="nav">
+      <button class="btn secondary" onclick="goTo(4)">← Back</button>
+      <span class="step-count">Step 5 of 5</span>
+      <button class="btn" onclick="alert('Ready to talk? Call us or request membership info.')">Become a Member →</button>
+    </div>
+  </div>
+
+
+  <!-- FOOTER -->
+  <footer class="footer">
+    <div class="footer-logo">YBF</div>
+    <div class="footer-note">Black &amp; White. No Gray Area.<br>Eastern Corn Belt · Direct to Farmer</div>
+  </footer>
+
+</div>
+<script>
+  // ── CONSTANTS ──
+  const CORN_SEEDS_BAG = 80000;
+  const SOY_SEEDS_BAG  = 140000;
+  const CORN_PAT_RATE  = 1.50;
+  const SOY_PAT_RATE   = 0.50;
+
+  let cornYieldRevenue = 0;
+  let soyYieldRevenue  = 0;
+
+  // ── STEP NAV ──
+  let currentStep = 1;
+  const totalSteps = 5;
+
+  function goTo(n) {
+    if (n < 1 || n > totalSteps) return;
+    calcAll();
+    document.getElementById('step-' + currentStep).classList.remove('active');
+    currentStep = n;
+    document.getElementById('step-' + currentStep).classList.add('active');
+    updateDots();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function updateDots() {
+    for (let i = 1; i <= totalSteps; i++) {
+      const dot  = document.getElementById('dot-' + i);
+      dot.classList.remove('active','done');
+      if (i < currentStep)  dot.classList.add('done');
+      if (i === currentStep) dot.classList.add('active');
+      if (i < totalSteps) {
+        const line = document.getElementById('line-' + i);
+        line.classList.toggle('done', i < currentStep);
+      }
+    }
+  }
+
+  // ── FORMATTING ──
+  function fmtD(v, dec) {
+    if (!isFinite(v) || isNaN(v) || v <= 0) return '—';
+    dec = dec !== undefined ? dec : 0;
+    if (v >= 1000) return '$' + Math.round(v).toLocaleString('en-US');
+    return '$' + v.toFixed(dec || 2);
+  }
+  function fmtSave(v) {
+    if (!isFinite(v) || isNaN(v)) return '—';
+    const sign = v >= 0 ? '+' : '-';
+    const abs  = Math.abs(v);
+    if (abs >= 1000) return sign + '$' + Math.round(abs).toLocaleString('en-US');
+    return sign + '$' + abs.toFixed(0);
+  }
+  function fmtBags(v) {
+    if (!v || v <= 0) return '—';
+    return Math.ceil(v).toLocaleString('en-US') + ' bags';
+  }
+
+  // ── MAIN CALC ──
+  let cornBagsCalc = 0;
+  let soyBagsCalc  = 0;
+  let cornSaveTotal = 0;
+  let soySaveTotal  = 0;
+
+  function calcAll() {
+    const cornAcres  = parseFloat(document.getElementById('corn-acres').value)  || 0;
+    const soyAcres   = parseFloat(document.getElementById('soy-acres').value)   || 0;
+    const cornRate   = parseFloat(document.getElementById('corn-rate').value)   || 32000;
+    const soyRate    = parseFloat(document.getElementById('soy-rate').value)    || 140000;
+    const cornRetail = parseFloat(document.getElementById('corn-retail').value) || 0;
+    const soyRetail  = parseFloat(document.getElementById('soy-retail').value)  || 0;
+    const cornCrows  = parseFloat(document.getElementById('corn-slider').value);
+    const soyCrows   = parseFloat(document.getElementById('soy-slider').value);
+
+    // bags
+    cornBagsCalc = cornAcres > 0 ? Math.ceil((cornAcres * cornRate) / CORN_SEEDS_BAG) : 0;
+    soyBagsCalc  = soyAcres  > 0 ? Math.ceil((soyAcres  * soyRate)  / SOY_SEEDS_BAG)  : 0;
+
+    // step 2
+    const cornPerk   = cornRetail > 0 ? (cornRetail / CORN_SEEDS_BAG) * 1000 : 0;
+    const soyPerk    = soyRetail  > 0 ? (soyRetail  / SOY_SEEDS_BAG)  * 1000 : 0;
+    const cornAcreCost = cornPerk > 0 ? (cornPerk / 1000) * cornRate : 0;
+    const soyAcreCost  = soyPerk  > 0 ? (soyPerk  / 1000) * soyRate  : 0;
+    const cornTotal  = cornBagsCalc > 0 && cornRetail > 0 ? cornBagsCalc * cornRetail : 0;
+    const soyTotal   = soyBagsCalc  > 0 && soyRetail  > 0 ? soyBagsCalc  * soyRetail  : 0;
+
+    document.getElementById('s2-corn-bags').textContent  = cornAcres > 0 ? fmtBags(cornBagsCalc) : '—';
+    document.getElementById('s2-soy-bags').textContent   = soyAcres  > 0 ? fmtBags(soyBagsCalc)  : '—';
+    document.getElementById('s2-corn-perk').textContent  = cornPerk  > 0 ? '$' + cornPerk.toFixed(2) : '—';
+    document.getElementById('s2-soy-perk').textContent   = soyPerk   > 0 ? '$' + soyPerk.toFixed(2)  : '—';
+    document.getElementById('s2-corn-acre').textContent  = cornAcreCost > 0 ? fmtD(cornAcreCost) : '—';
+    document.getElementById('s2-soy-acre').textContent   = soyAcreCost  > 0 ? fmtD(soyAcreCost)  : '—';
+    document.getElementById('s2-corn-total').textContent = cornTotal > 0 ? fmtD(cornTotal) : '—';
+    document.getElementById('s2-soy-total').textContent  = soyTotal  > 0 ? fmtD(soyTotal)  : '—';
+    document.getElementById('s2-grand-total').textContent = (cornTotal + soyTotal) > 0 ? fmtD(cornTotal + soyTotal) : '—';
+
+    // revelation panel
+    document.getElementById('rev-corn-perk').textContent = cornPerk > 0 ? '$' + cornPerk.toFixed(2) : '—';
+    document.getElementById('rev-soy-perk').textContent  = soyPerk  > 0 ? '$' + soyPerk.toFixed(2)  : '—';
+
+    // step 3
+    const cornCrowsPerk   = (cornCrows / CORN_SEEDS_BAG) * 1000;
+    const soyCrowsPerk    = (soyCrows  / SOY_SEEDS_BAG)  * 1000;
+    const cornSaveAcre    = cornRetail > 0 ? ((cornRetail - cornCrows) / CORN_SEEDS_BAG) * cornRate : 0;
+    const soySaveAcre     = soyRetail  > 0 ? ((soyRetail  - soyCrows)  / SOY_SEEDS_BAG)  * soyRate  : 0;
+    cornSaveTotal = cornBagsCalc > 0 && cornRetail > 0 ? cornBagsCalc * (cornRetail - cornCrows) : 0;
+    soySaveTotal  = soyBagsCalc  > 0 && soyRetail  > 0 ? soyBagsCalc  * (soyRetail  - soyCrows)  : 0;
+
+    document.getElementById('s3-corn-val').textContent       = '$' + cornCrows;
+    document.getElementById('s3-soy-val').textContent        = '$' + soyCrows;
+    document.getElementById('s3-corn-perk').textContent      = '$' + cornCrowsPerk.toFixed(2);
+    document.getElementById('s3-soy-perk').textContent       = '$' + soyCrowsPerk.toFixed(2);
+    document.getElementById('s3-corn-save-acre').textContent = cornRetail > 0 ? fmtSave(cornSaveAcre)  : '—';
+    document.getElementById('s3-soy-save-acre').textContent  = soyRetail  > 0 ? fmtSave(soySaveAcre)   : '—';
+    document.getElementById('s3-corn-save-total').textContent = cornRetail > 0 && cornAcres > 0 ? fmtSave(cornSaveTotal) : '—';
+    document.getElementById('s3-soy-save-total').textContent  = soyRetail  > 0 && soyAcres  > 0 ? fmtSave(soySaveTotal)  : '—';
+    document.getElementById('s3-total-savings').textContent  = (cornSaveTotal + soySaveTotal) !== 0 ? fmtSave(cornSaveTotal + soySaveTotal) : '—';
+
+    // step 4 — yield
+    const cornYield     = parseFloat(document.getElementById('corn-yield-slider').value) || 0;
+    const soyYield      = parseFloat(document.getElementById('soy-yield-slider').value)  || 0;
+    const cornCommodity = parseFloat(document.getElementById('corn-commodity').value)    || 4.50;
+    const soyCommodity  = parseFloat(document.getElementById('soy-commodity').value)     || 9.50;
+
+    cornYieldRevenue = cornAcres > 0 ? cornAcres * cornYield * cornCommodity : 0;
+    soyYieldRevenue  = soyAcres  > 0 ? soyAcres  * soyYield  * soyCommodity  : 0;
+
+    const fmtYield = v => v % 1 === 0 ? v + ' bu/ac' : v.toFixed(1) + ' bu/ac';
+    document.getElementById('s4-corn-yield-val').textContent     = fmtYield(cornYield);
+    document.getElementById('s4-soy-yield-val').textContent      = fmtYield(soyYield);
+    document.getElementById('s4-corn-yield-revenue').textContent = cornYieldRevenue > 0 ? fmtSave(cornYieldRevenue) : '—';
+    document.getElementById('s4-soy-yield-revenue').textContent  = soyYieldRevenue  > 0 ? fmtSave(soyYieldRevenue)  : '—';
+    document.getElementById('s4-total-yield').textContent        = (cornYieldRevenue + soyYieldRevenue) > 0 ? fmtSave(cornYieldRevenue + soyYieldRevenue) : '—';
+    document.getElementById('s4-seed-savings-carry').textContent = (cornSaveTotal + soySaveTotal) !== 0 ? fmtSave(cornSaveTotal + soySaveTotal) : '—';
+
+    // patronage bag counts
+    document.getElementById('corn-pat-bags-display').textContent = cornBagsCalc > 0 ? cornBagsCalc.toLocaleString('en-US') : '—';
+    document.getElementById('soy-pat-bags-display').textContent  = soyBagsCalc  > 0 ? soyBagsCalc.toLocaleString('en-US')  : '—';
+
+    calcPatronage();
+  }
+
+  // ── PATRONAGE ──
+  function toggle(id) {
+    document.getElementById(id).classList.toggle('on');
+    calcPatronage();
+  }
+
+  function checked(ids) { return ids.filter(id => document.getElementById(id).classList.contains('on')).length; }
+
+  function calcPatronage() {
+    const cornBeh = checked(['cb1','cb2','cb3','cb4']);
+    const soyBeh  = checked(['sb1','sb2','sb3','sb4']);
+
+    const cornPat = cornBagsCalc * cornBeh * CORN_PAT_RATE;
+    const soyPat  = soyBagsCalc  * soyBeh  * SOY_PAT_RATE;
+
+    const fmtPat = v => v > 0 ? '+$' + v.toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2}) : '—';
+
+    document.getElementById('corn-pat-val').textContent = fmtPat(cornPat);
+    document.getElementById('soy-pat-val').textContent  = fmtPat(soyPat);
+    document.getElementById('v-corn-pat').textContent   = fmtPat(cornPat);
+    document.getElementById('v-soy-pat').textContent    = fmtPat(soyPat);
+
+    document.getElementById('v-corn-seed').textContent  = cornSaveTotal    !== 0 ? fmtSave(cornSaveTotal)    : '—';
+    document.getElementById('v-soy-seed').textContent   = soySaveTotal     !== 0 ? fmtSave(soySaveTotal)     : '—';
+    document.getElementById('v-corn-yield').textContent = cornYieldRevenue > 0   ? fmtSave(cornYieldRevenue) : '—';
+    document.getElementById('v-soy-yield').textContent  = soyYieldRevenue  > 0   ? fmtSave(soyYieldRevenue)  : '—';
+
+    const grand = cornSaveTotal + soySaveTotal + cornYieldRevenue + soyYieldRevenue + cornPat + soyPat;
+    document.getElementById('v-grand').textContent = grand !== 0 ? fmtSave(grand) : '—';
+  }
+
+  // ── WIRE SLIDERS ──
+  document.getElementById('corn-slider').addEventListener('input', function() {
+    document.getElementById('s3-corn-val').textContent = '$' + this.value;
+    calcAll();
+  });
+  document.getElementById('soy-slider').addEventListener('input', function() {
+    document.getElementById('s3-soy-val').textContent = '$' + this.value;
+    calcAll();
+  });
+  document.getElementById('corn-yield-slider').addEventListener('input', calcAll);
+  document.getElementById('soy-yield-slider').addEventListener('input', calcAll);
+  document.getElementById('corn-commodity').addEventListener('input', calcAll);
+  document.getElementById('soy-commodity').addEventListener('input', calcAll);
+
+  // init
+  calcAll();
+</script>
+</body>
+</html>
